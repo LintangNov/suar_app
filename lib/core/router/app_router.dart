@@ -7,20 +7,20 @@ import '../../features/onboarding/onboarding_provider.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final goRouterProvider = Provider<GoRouter>((ref){
-  final hasCompeletedOnboarding = ref.watch(onboardingStateProvider);
+  final hasCompletedOnboarding = ref.watch(onboardingStateProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: ':',
+    initialLocation: '/',
     debugLogDiagnostics: true,
 
     redirect: (context, state){
       final isGoingToOnboarding = state.uri.path == '/onboarding';
-      if (hasCompeletedOnboarding && !isGoingToOnboarding) {
+      if (!hasCompletedOnboarding && !isGoingToOnboarding) {
         return '/onboarding';
       }
 
-      if (hasCompeletedOnboarding && isGoingToOnboarding){
+      if (hasCompletedOnboarding && isGoingToOnboarding){
         return '/';
       }
 
@@ -29,7 +29,7 @@ final goRouterProvider = Provider<GoRouter>((ref){
 
     routes: [
       GoRoute(
-        path: '/onboardimg',
+        path: '/onboarding',
         name: 'onboarding',
         builder: (context, state) => Scaffold(
           appBar: AppBar(title:  const Text('SUAR - Setup'),),
