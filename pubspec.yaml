@@ -28,6 +28,8 @@ dependencies:
   sqlite3: ^3.2.0
   path: ^1.9.1
   path_provider: ^2.1.5
+  xml: ^6.6.1
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -40,4 +42,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
   
