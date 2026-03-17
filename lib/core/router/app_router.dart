@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:suar_app/features/map_evacuation/presentation/map_screen.dart';
 
 import '../../features/onboarding/onboarding_provider.dart';
+
+import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/ews_ai/presentation/home_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -31,32 +35,20 @@ final goRouterProvider = Provider<GoRouter>((ref){
       GoRoute(
         path: '/onboarding',
         name: 'onboarding',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(title:  const Text('SUAR - Setup'),),
-          body: Center(
-            child: ElevatedButton(
-              onPressed: (){
-                ref.read(onboardingStateProvider.notifier).completeOnboarding();
-              },
-              child: const Text('Selesaikan Onboarding'),
-            ),
-          ),
-        ),
+        builder: (context, state) => const OnboardingScreen(),
       ),
 
       // Map & EWS Route
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('SUAR - Peta & EWS')),
-          body: Center(
-            child: ElevatedButton(
-              onPressed: () => context.push('/chat'),
-              child: const Text('Buka Mesh Chat (Offline)'),
-            ),
-          ),
-        ),
+        builder: (context, state) => const HomeScreen(),
+      ),
+
+      GoRoute(
+        path: '/map',
+        name: 'map',
+        builder: (context, state) => const MapScreen(),
       ),
 
       // Offline mesh chat route
