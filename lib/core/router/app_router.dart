@@ -7,6 +7,7 @@ import '../../features/onboarding/onboarding_provider.dart';
 
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/ews_ai/presentation/home_screen.dart';
+import '../../features/ews_ai/presentation/ews_testing_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -49,6 +50,12 @@ final goRouterProvider = Provider<GoRouter>((ref){
         path: '/map',
         name: 'map',
         builder: (context, state) => const MapScreen(),
+      ),
+
+      GoRoute(
+        path: '/testing',
+        name: 'testing',
+        builder: (context, state) => const EwsTestingScreen(),
       ),
 
       // Offline mesh chat route

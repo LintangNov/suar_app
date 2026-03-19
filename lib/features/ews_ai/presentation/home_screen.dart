@@ -1,9 +1,13 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:suar_app/features/map_evacuation/presentation/geofence_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import 'ews_provider.dart';
 import '../domain/triage_result_model.dart';
+import 'package:flutter_map/flutter_map.dart';
+import '../../map_evacuation/presentation/map_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -11,12 +15,42 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ewsState = ref.watch(ewsProvider);
+    ref.watch(geofenceProvider);
+
+    final isCacheReady = ref.watch(mapCacheStatusProvider).value ?? false;
+    final networkState =
+        ref.watch(networkStatusProvider).value ?? [ConnectivityResult.none];
+    final hasInternet = !networkState.contains(ConnectivityResult.none);
+
+    String mapTitle = 'Peta Evakuasi';
+    String mapSubtitle = 'Memuat status peta...';
+    IconData mapIcon = Icons.map;
+    Color mapBadgeColor = AppColors.primary;
+    bool isMapAvailable = true;
+
+    if (isCacheReady) {
+      mapTitle = 'Peta (Offline Ready)';
+      mapSubtitle = 'Aman, jalur tersedia tanpa internet';
+      mapIcon = Icons.offline_pin;
+      mapBadgeColor = AppColors.success;
+    } else if (hasInternet) {
+      mapTitle = 'Peta (Live Online)';
+      mapSubtitle = 'Menggunakan data untuk memuat peta';
+      mapIcon = Icons.wifi;
+      mapBadgeColor = AppColors.info;
+    } else {
+      mapTitle = 'Peta Belum Tersedia';
+      mapSubtitle = 'Tidak ada internet & belum diunduh';
+      mapIcon = Icons.wifi_off;
+      mapBadgeColor = AppColors.danger;
+      isMapAvailable = false;
+    }
 
     ref.listen<AsyncValue<TriageResult?>>(ewsProvider, (previous, next) {
       if (next.hasValue &&
           next.value != null &&
           next.value!.statusTindakan == 'EVAKUASI') {
-        _showEwsAlertModal(context, next.value!);
+        _showEwsAlertModal(context, next.value!, isMapAvailable);
       }
     });
 
@@ -31,6 +65,12 @@ class HomeScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.bug_report, color: AppColors.textHint),
+            tooltip: 'EWS Simulator',
+            onPressed: () => context.push('/testing'),
+          ),
+
+          IconButton(
             icon: const Icon(
               Icons.notifications_active,
               color: AppColors.primary,
@@ -38,8 +78,7 @@ class HomeScreen extends ConsumerWidget {
             style: IconButton.styleFrom(
               backgroundColor: AppColors.primaryLight.withValues(alpha: 0.3),
             ),
-            onPressed: () =>
-                ref.read(ewsProvider.notifier).checkLatestThreat(), // Tes EWS
+            onPressed: () => ref.read(ewsProvider.notifier).checkLatestThreat(),
           ),
           const SizedBox(width: 16),
         ],
@@ -129,11 +168,24 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _buildMenuCard(
               context,
-              icon: Icons.map,
-              title: 'Peta Evakuasi',
-              subtitle: 'Jalur evakuasi offline',
+              icon: mapIcon,
+              iconColor: mapBadgeColor,
+              title: mapTitle,
+              subtitle: mapSubtitle,
               isMap: true,
-              onTap: () => context.push('/map'),
+              isMapAvailable: isMapAvailable,
+              onTap: isMapAvailable
+                  ? () => context.push('/map')
+                  : () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Peta tidak dapat diakses tanpa internet! Unduh terlebih dahulu saat online.',
+                          ),
+                          backgroundColor: AppColors.danger,
+                        ),
+                      );
+                    },
             ),
             const SizedBox(height: 24),
 
@@ -220,73 +272,157 @@ class HomeScreen extends ConsumerWidget {
     required IconData icon,
     required String title,
     required String subtitle,
+    Color iconColor = AppColors.primary,
     bool isMap = false,
+    bool isMapAvailable = true,
     VoidCallback? onTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    return Material(
+      color: AppColors.white,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        side: const BorderSide(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: iconColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: AppColors.white),
                   ),
-                  child: Icon(icon, color: AppColors.white),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, color: AppColors.textHint),
-              ],
-            ),
-          ),
-          if (isMap)
-            Container(
-              height: 100,
-              decoration: const BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  'Placeholder Peta Topografi',
-                  style: TextStyle(color: AppColors.textHint),
-                ),
+                  const Icon(Icons.chevron_right, color: AppColors.textHint),
+                ],
               ),
             ),
-        ],
+            if (isMap)
+              isMapAvailable
+                  ? Consumer(
+                      builder: (context, ref, child) {
+                        final locationAsync = ref.watch(
+                          userLocationStreamProvider,
+                        );
+
+                        return Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: AppColors.border,
+                          ),
+                          child: locationAsync.when(
+                            data: (currentLocation) => FlutterMap(
+                              options: MapOptions(
+                                initialCenter: currentLocation,
+                                initialZoom: 15.0,
+                                interactionOptions: const InteractionOptions(
+                                  flags: InteractiveFlag.none,
+                                ),
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate:
+                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.suar.app',
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: currentLocation,
+                                      width: 30,
+                                      height: 30,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryLight
+                                              .withValues(alpha: 0.5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.my_location,
+                                            color: AppColors.primary,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            error: (err, stack) => const Center(
+                              child: Text(
+                                'Gagal memuat cuplikan peta',
+                                style: TextStyle(
+                                  color: AppColors.textHint,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      height: 120,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(color: AppColors.border),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.map_outlined,
+                              color: AppColors.textHint,
+                              size: 32,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Peta ditangguhkan (Mode Offline)',
+                              style: TextStyle(
+                                color: AppColors.textHint,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+          ],
+        ),
       ),
     );
   }
@@ -312,7 +448,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _showEwsAlertModal(BuildContext context, TriageResult result) {
+  void _showEwsAlertModal(BuildContext context, TriageResult result, bool isMapAvailable) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -487,17 +623,26 @@ class HomeScreen extends ConsumerWidget {
                               width: double.infinity,
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.white,
-                                  foregroundColor: AppColors.danger,
+                                  backgroundColor: isMapAvailable? AppColors.white : AppColors.surface,
+                                  foregroundColor: isMapAvailable? AppColors.danger : AppColors.textHint,
                                 ),
                                 onPressed: () {
-                                  Navigator.pop(context);
-                                  // TODO: Arahkan ke rute evakuasi di flutter_map
+                                  if (isMapAvailable) {
+                                    Navigator.pop(context);
+                                    context.push('/map');
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: const Text('Peta tidak tersedia! Harap ikuti instruksi dari AI.'),
+                                        backgroundColor: AppColors.warning,
+                                      ),
+                                    );
+                                  }
                                 },
-                                icon: const Icon(Icons.location_on),
-                                label: const Text(
-                                  'SAFE ZONE INFO',
-                                  style: TextStyle(
+                                icon: Icon(isMapAvailable ? Icons.location_on : Icons.location_off),
+                                label: Text(
+                                  isMapAvailable ? 'BUKA PETA EVAKUASI' : "PETA TIDAK TERSEDIA",
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 1,
                                   ),

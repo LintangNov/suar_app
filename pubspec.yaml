@@ -30,6 +30,8 @@ dependencies:
   path_provider: ^2.1.5
   xml: ^6.6.1
   flutter_dotenv: ^6.0.0
+  shared_preferences: ^2.5.4
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

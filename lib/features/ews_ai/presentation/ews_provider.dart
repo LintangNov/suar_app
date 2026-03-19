@@ -6,7 +6,7 @@ import '../data/location_service.dart';
 import '../data/inarisk_service.dart';
 import '../data/gemini_triage_service.dart';
 import '../domain/triage_result_model.dart';
-
+import '../domain/gempa_model.dart';
 
 final dioProvider = Provider<Dio>((ref) => Dio());
 
@@ -39,7 +39,6 @@ class EwsNotifier extends AsyncNotifier<TriageResult?> {
     state = const AsyncLoading();
 
     state = await AsyncValue.guard(() async {
-      
       final bmkgService = ref.read(bmkgServiceProvider);
       final gempa = await bmkgService.fetchLatestEarthquake();
 
@@ -56,6 +55,23 @@ class EwsNotifier extends AsyncNotifier<TriageResult?> {
       final finalResult = await geminiService.analyzeThreat(
         gempa: gempa,
         isDiZonaMerah: isDiZonaMerah,
+      );
+
+      return finalResult;
+    });
+  }
+
+  Future<void> triggerMockThreat({
+    required GempaModel dummyGempa,
+    required bool dummyIsDiZonaMerah,
+  }) async {
+    state = const AsyncLoading();
+
+    state = await AsyncValue.guard(() async {
+      final geminiService = ref.read(geminiTriageServiceProvider);
+      final finalResult = await geminiService.analyzeThreat(
+        gempa: dummyGempa,
+        isDiZonaMerah: dummyIsDiZonaMerah,
       );
 
       return finalResult;
