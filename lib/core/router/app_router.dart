@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:suar_app/features/map_evacuation/presentation/map_screen.dart';
+import '../../features/map_evacuation/presentation/cache_management_screen.dart';
 
 import '../../features/onboarding/onboarding_provider.dart';
 
@@ -56,6 +57,12 @@ final goRouterProvider = Provider<GoRouter>((ref){
         path: '/testing',
         name: 'testing',
         builder: (context, state) => const EwsTestingScreen(),
+      ),
+
+      GoRoute(
+        path: '/cache-management',
+        name: 'cache_management',
+        builder: (context, state) => const CacheManagementScreen(),
       ),
 
       // Offline mesh chat route

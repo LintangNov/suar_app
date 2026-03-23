@@ -3,7 +3,6 @@ import '../../ews_ai/data/inarisk_service.dart';
 import 'elevation_service.dart';
 import 'routing_service.dart';
 
-// Exception if no safe route found
 class VerticalEvacuationException implements Exception {
   final String message;
   VerticalEvacuationException(this.message);
@@ -23,60 +22,84 @@ class SmartEvacuationService {
   });
 
   Future<List<LatLng>> findOptimalRoute(LatLng currentLocation) async {
-    // search radius
-    final List<double> searchRadii = [2000.0, 5000.0, 7000.0];
-    // 8 directional bearings
+    final List<double> searchRadii = [3000.0]; 
     final List<double> bearings = [0, 45, 90, 135, 180, 225, 270, 315];
 
     const distanceCalculator = Distance();
 
+    print('\n=== MULAI ANALISIS RUTE EVAKUASI ===');
+    print('Lokasi Saat Ini: ${currentLocation.latitude}, ${currentLocation.longitude}');
+
     for (double radius in searchRadii) {
       List<Map<String, dynamic>> validCandidates = [];
 
-      for (double bearing in bearings) {
-        final LatLng candidatePoint = distanceCalculator.offset(
-          currentLocation,
-          radius,
-          bearing,
-        );
+      final futures = bearings.map((bearing) async {
+        try {
+          final LatLng candidatePoint = distanceCalculator.offset(
+            currentLocation,
+            radius,
+            bearing,
+          );
 
-        final isRedZone = await inarisk.checkTsunamiHazard(
-          candidatePoint.latitude,
-          candidatePoint.longitude,
-        );
-        if (isRedZone) continue;
+          // 1. Cek zona merah
+          final isRedZone = await inarisk.checkTsunamiHazard(
+            candidatePoint.latitude,
+            candidatePoint.longitude,
+          );
+          if (isRedZone) {
+            print('❌ Arah $bearing° ditolak: Berada di Zona Merah InaRISK');
+            return null;
+          }
 
-        final elevation = await elevationService.getElevation(candidatePoint);
-        if (elevation <= 5.0) continue;
+          // 2. Cek elevasi tanah
+          final elevation = await elevationService.getElevation(candidatePoint);
+          if (elevation <= 5.0) {
+            print('❌ Arah $bearing° ditolak: Elevasi terlalu rendah ($elevation m)');
+            return null;
+          }
 
-        validCandidates.add({'point': candidatePoint, 'elevation': elevation});
+          print('✅ Arah $bearing° lolos seleksi awal! Elevasi: $elevation m');
+          return {'point': candidatePoint, 'elevation': elevation, 'bearing': bearing};
+        } catch (e) {
+          print('❌ Arah $bearing° ditolak: Error API/Koneksi -> $e');
+          return null; 
+        }
+      });
+
+      final results = await Future.wait(futures);
+      
+      for (var res in results) {
+        if (res != null) validCandidates.add(res);
       }
 
-      // Desicion Support
+      print('\nTotal kandidat titik aman: ${validCandidates.length}');
+
       if (validCandidates.isNotEmpty) {
         validCandidates.sort(
-          (a, b) =>
-              (b['elevation'] as double).compareTo(a['elevation'] as double),
+          (a, b) => (b['elevation'] as double).compareTo(a['elevation'] as double),
         );
 
-        final LatLng bestPoint = validCandidates.first['point'];
-
         for (var candidate in validCandidates) {
+          final bearing = candidate['bearing'];
+          print('⏳ Sedang mencoba kalkulasi rute ke arah $bearing° (Elevasi: ${candidate['elevation']} m)...');
           try {
-            return await routingService.getEvacuationRoute(
+            final route = await routingService.getEvacuationRoute(
               currentLocation,
-              bestPoint,
+              candidate['point'],
             );
+            print('🎉 Rute sukses ditemukan ke arah $bearing°!');
+            return route;
           } catch (e) {
-            continue;
+            print('⚠️ Gagal membuat rute jalan kaki ke arah $bearing°: $e');
+            continue; // Coba titik terbaik berikutnya
           }
         }
       }
     }
 
-    // Fallback if no route found after all radius searches
+    print('🚨 KESIMPULAN: Semua titik gagal. Harus evakuasi vertikal.');
     throw VerticalEvacuationException(
-      'Tidak ditemukan dataran tinggi yang aman dalam radius tempuh jalan kaki. Lakukan Evakuasi Vertikal!',
+      'Tidak ditemukan dataran tinggi yang aman dan bisa dijangkau jalan kaki dalam radius 3KM. Lakukan Evakuasi Vertikal ke gedung tinggi terdekat!',
     );
   }
 }

@@ -34,6 +34,7 @@ class InaRiskService {
         throw Exception('Gagal menghubungi server InaRISK BNPB');
       }
     } catch (e) {
+      print('⚠️ InaRISK Error: $e');
       return true; 
     }
   }
