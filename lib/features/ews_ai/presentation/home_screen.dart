@@ -47,9 +47,7 @@ class HomeScreen extends ConsumerWidget {
     }
 
     ref.listen<AsyncValue<TriageResult?>>(ewsProvider, (previous, next) {
-      if (next.hasValue &&
-          next.value != null &&
-          next.value!.statusTindakan == 'EVAKUASI') {
+      if (next.hasValue && next.value != null) {
         _showEwsAlertModal(context, next.value!, isMapAvailable);
       }
     });
@@ -68,6 +66,12 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.bug_report, color: AppColors.textHint),
             tooltip: 'EWS Simulator',
             onPressed: () => context.push('/testing'),
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.sd_storage_outlined, color: AppColors.textHint),
+            tooltip: 'Penyimpanan Peta',
+            onPressed: () => context.push('/cache-management'),
           ),
 
           IconButton(
@@ -125,7 +129,7 @@ class HomeScreen extends ConsumerWidget {
 
             ewsState.when(
               data: (result) {
-                if (result == null || result.statusTindakan != 'EVAKUASI') {
+                if (result == null) {
                   return _buildStatusCard(
                     color: AppColors.successLight,
                     iconColor: AppColors.success,
@@ -133,14 +137,33 @@ class HomeScreen extends ConsumerWidget {
                     title: 'Tidak ada peringatan aktif',
                     subtitle: 'Kondisi saat ini aman dan terkendali.',
                   );
+                } else if (result.statusTindakan == 'BERLINDUNG') {
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () =>
+                        _showEwsAlertModal(context, result, isMapAvailable),
+                    child: _buildStatusCard(
+                      color: AppColors.warningLight,
+                      iconColor: AppColors.warning,
+                      icon: Icons.shield,
+                      title: 'WASPADA GEMPA',
+                      subtitle: 'Tekan untuk melihat instruksi keselamatan.',
+                    ),
+                  );
+                } else {
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () =>
+                        _showEwsAlertModal(context, result, isMapAvailable),
+                    child: _buildStatusCard(
+                      color: AppColors.dangerLight,
+                      iconColor: AppColors.danger,
+                      icon: Icons.warning,
+                      title: 'PERINGATAN AKTIF',
+                      subtitle: 'Tekan untuk melihat instruksi evakuasi.',
+                    ),
+                  );
                 }
-                return _buildStatusCard(
-                  color: AppColors.dangerLight,
-                  iconColor: AppColors.danger,
-                  icon: Icons.warning,
-                  title: 'PERINGATAN AKTIF',
-                  subtitle: 'Tekan untuk melihat instruksi evakuasi.',
-                );
               },
               loading: () => _buildStatusCard(
                 color: AppColors.infoLight,
@@ -449,6 +472,12 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showEwsAlertModal(BuildContext context, TriageResult result, bool isMapAvailable) {
+    final isEvakuasi = result.statusTindakan == 'EVAKUASI';
+    final themeColor = isEvakuasi ? AppColors.danger : AppColors.warning;
+    final themeLightColor = isEvakuasi ? AppColors.dangerLight : AppColors.warningLight;
+    final alertTitle = isEvakuasi ? 'POTENSI TSUNAMI' : 'GEMPA BUMI';
+    final zoneText = isEvakuasi ? 'LOKASI ANDA: ZONA MERAH' : 'LOKASI ANDA: AMAN DARI TSUNAMI';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -461,31 +490,26 @@ class HomeScreen extends ConsumerWidget {
           height: double.infinity,
           child: Column(
             children: [
-              // Header Merah
               Container(
-                color: AppColors.dangerLight,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
+                color: themeLightColor,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.close, color: AppColors.danger),
-                      // ganti ke logika hentikan alarm besok
+                      icon: Icon(Icons.close, color: themeColor),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    const Text(
+                    Text(
                       'SUAR EWS ALERT',
                       style: TextStyle(
-                        color: AppColors.danger,
+                        color: themeColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                         letterSpacing: 1.5,
                       ),
                     ),
-                    const Icon(Icons.share, color: AppColors.danger),
+                    Icon(Icons.share, color: themeColor),
                   ],
                 ),
               ),
@@ -494,51 +518,28 @@ class HomeScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 40,
-                        backgroundColor: AppColors.danger,
-                        child: Icon(
-                          Icons.warning,
-                          size: 40,
-                          color: AppColors.white,
-                        ),
+                        backgroundColor: themeColor,
+                        child: const Icon(Icons.warning, size: 40, color: AppColors.white),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'POTENSI TSUNAMI',
-                        style: Theme.of(context).textTheme.displayLarge
-                            ?.copyWith(color: AppColors.danger),
+                        alertTitle,
+                        style: Theme.of(context).textTheme.displayLarge?.copyWith(color: themeColor),
                       ),
                       const Text(
                         'Peringatan Dini di Wilayah Anda',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 24),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildStatCard(
-                            'MAGNITUDE',
-                            '7.8 SR',
-                            '+0.2',
-                            isRed: true,
-                          ),
-                          _buildStatCard(
-                            'KEDALAMAN',
-                            '10 km',
-                            'Stabil',
-                            isRed: false,
-                          ),
-                          _buildStatCard(
-                            'JARAK',
-                            '2.5 km',
-                            'Dekat',
-                            isRed: true,
-                          ),
+                          _buildStatCard('MAGNITUDE', '7.8 SR', '+0.2', isRed: isEvakuasi, themeColor: themeColor),
+                          _buildStatCard('KEDALAMAN', '10 km', 'Stabil', isRed: false, themeColor: themeColor),
+                          _buildStatCard('JARAK', '2.5 km', 'Dekat', isRed: isEvakuasi, themeColor: themeColor),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -553,27 +554,20 @@ class HomeScreen extends ConsumerWidget {
                         alignment: Alignment.bottomLeft,
                         child: Container(
                           margin: const EdgeInsets.all(12),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.white,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.circle,
-                                color: AppColors.danger,
-                                size: 10,
-                              ),
-                              SizedBox(width: 8),
+                              Icon(Icons.circle, color: themeColor, size: 10),
+                              const SizedBox(width: 8),
                               Text(
-                                'LOKASI ANDA: ZONA MERAH',
+                                zoneText,
                                 style: TextStyle(
-                                  color: AppColors.danger,
+                                  color: themeColor,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -588,7 +582,7 @@ class HomeScreen extends ConsumerWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppColors.danger,
+                          color: themeColor,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -609,46 +603,48 @@ class HomeScreen extends ConsumerWidget {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            Text(
-                              result.instruksiDarurat,
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                height: 1.4,
-                              ),
-                            ),
+                            
+                            
+                            const Text('Tindakan Segera:', style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            _buildInstructionList(result.tindakanSegera),
+                            
+                            const SizedBox(height: 12),
+                            
+                            const Text('Persiapan:', style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            _buildInstructionList(result.persiapan),
+                            
                             const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isMapAvailable? AppColors.white : AppColors.surface,
-                                  foregroundColor: isMapAvailable? AppColors.danger : AppColors.textHint,
-                                ),
-                                onPressed: () {
-                                  if (isMapAvailable) {
-                                    Navigator.pop(context);
-                                    context.push('/map');
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: const Text('Peta tidak tersedia! Harap ikuti instruksi dari AI.'),
-                                        backgroundColor: AppColors.warning,
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: Icon(isMapAvailable ? Icons.location_on : Icons.location_off),
-                                label: Text(
-                                  isMapAvailable ? 'BUKA PETA EVAKUASI' : "PETA TIDAK TERSEDIA",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1,
+                            
+                            if (isEvakuasi)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isMapAvailable ? AppColors.white : AppColors.surface,
+                                    foregroundColor: isMapAvailable ? AppColors.danger : AppColors.textHint,
+                                  ),
+                                  onPressed: () {
+                                    if (isMapAvailable) {
+                                      Navigator.pop(context);
+                                      context.push('/map');
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Peta tidak tersedia! Harap ikuti instruksi dari AI.'),
+                                          backgroundColor: AppColors.warning,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: Icon(isMapAvailable ? Icons.location_on : Icons.location_off),
+                                  label: Text(
+                                    isMapAvailable ? 'BUKA PETA EVAKUASI' : "PETA TIDAK TERSEDIA",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
                                   ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -663,12 +659,8 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    String sub, {
-    required bool isRed,
-  }) {
+  Widget _buildStatCard(String title, String value, String sub, {required bool isRed, required Color themeColor}) {
+    final activeColor = isRed ? themeColor : AppColors.textPrimary;
     return Container(
       width: 100,
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -679,44 +671,43 @@ class HomeScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textHint,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textHint)),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isRed ? AppColors.danger : AppColors.textPrimary,
-            ),
-          ),
+          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: activeColor)),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                isRed ? Icons.trending_up : Icons.remove,
-                size: 12,
-                color: isRed ? AppColors.danger : AppColors.textSecondary,
-              ),
+              Icon(isRed ? Icons.trending_up : Icons.remove, size: 12, color: isRed ? themeColor : AppColors.textSecondary),
               const SizedBox(width: 4),
-              Text(
-                sub,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isRed ? AppColors.danger : AppColors.textSecondary,
-                ),
-              ),
+              Text(sub, style: TextStyle(fontSize: 10, color: isRed ? themeColor : AppColors.textSecondary)),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInstructionList(List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: items.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('• ', style: TextStyle(color: AppColors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text(
+                  item,
+                  style: const TextStyle(color: AppColors.white, fontSize: 14, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

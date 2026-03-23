@@ -30,8 +30,8 @@ class RoutingService {
         final List coordinates = response.data['features'][0]['geometry']['coordinates'];
         
         return coordinates.map((coord) {
-          final double lon = coord[0] as double;
-          final double lat = coord[1] as double;
+          final double lon = (coord[0] as num).toDouble();
+          final double lat = (coord[1] as num).toDouble();
           return LatLng(lat, lon);
         }).toList();
       } else {
