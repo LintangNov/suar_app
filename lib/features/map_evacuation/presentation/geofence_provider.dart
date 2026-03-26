@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -30,6 +31,15 @@ class GeofenceNotifier extends AsyncNotifier<GeofenceState> {
   }
 
   Future<void> _handleLocationUpdate(LatLng location) async {
+    // TAMBAHAN: Cek internet dulu sebelum memata-matai lokasi
+    final networkState = await ref.read(networkStatusProvider.future);
+    final hasInternet = !networkState.contains(ConnectivityResult.none);
+
+    if (!hasInternet) {
+      _dwellTimer?.cancel();
+      return; 
+    }
+
     _lastKnownLocation = location;
     final inariskService = ref.read(inariskServiceProvider);
     
@@ -72,6 +82,14 @@ class GeofenceNotifier extends AsyncNotifier<GeofenceState> {
   }
 
   Future<void> _downloadAndCacheMap(LatLng location) async {
+    final networkState = await ref.read(networkStatusProvider.future);
+    final hasInternet = !networkState.contains(ConnectivityResult.none);
+    
+    if (!hasInternet) {
+      print("Geofence: Batal sinkronisasi peta karena internet tiba-tiba terputus.");
+      return;
+    }
+
     try {
       final cacheService = MapCacheService();
       
