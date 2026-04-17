@@ -41,4 +41,39 @@ class RoutingService {
       throw Exception('Error kalkulasi rute evakuasi ORS: $e');
     }
   }
+
+  Future<LatLng?> getSnappedPoint(LatLng point, {int radius = 500}) async {
+    try {
+      const String profile = 'foot-walking';
+      const String url = 'https://api.openrouteservice.org/v2/snap/$profile';
+
+      final response = await _dio.post(
+        url,
+        options: Options(
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+        ),
+        data: {
+          "locations": [[point.longitude, point.latitude]],
+          "radius": radius
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final locations = response.data['locations'] as List;
+        if (locations.isNotEmpty && locations[0] != null) {
+          final snappedCoords = locations[0]['location'];
+          final double lon = (snappedCoords[0] as num).toDouble();
+          final double lat = (snappedCoords[1] as num).toDouble();
+          return LatLng(lat, lon);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('⚠️ Snapping API Error: $e');
+      return null;
+    }
+  }
 }
